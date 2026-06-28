@@ -19,16 +19,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_text:
             return
 
-        # Добавляем системную инструкцию для краткости (в начало истории)
+        # Системная инструкция для краткости и запрета ссылок
         if not any(msg.get("role") == "system" for msg in user_histories[user_id]):
-            user_histories[user_id].insert(0, {"role": "system", "content": "Ты — краткий помощник. Отвечай только по делу, без воды, длинных вступлений и лишней вежливости. Ответы должны быть лаконичными."})
+            user_histories[user_id].insert(0, {"role": "system", "content": "Ты — краткий помощник. Отвечай по делу. Если используешь поиск, не присылай ссылки, сноски и технический текст. Пиши только чистый, понятный ответ."})
             
         # Добавляем сообщение пользователя
         user_histories[user_id].append({"role": "user", "content": user_text})
         
         # Лимит истории 30 сообщений
-        if len(user_histories[user_id]) > 31: # 31 с учетом системного сообщения
-            user_histories[user_id].pop(1) # удаляем самое старое сообщение пользователя
+        if len(user_histories[user_id]) > 31: 
+            user_histories[user_id].pop(1) 
 
         try:
             response = g4f.ChatCompletion.create(
