@@ -2,28 +2,38 @@ import os
 import g4f
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from collections import defaultdict
+
+# Словарь для хранения истории сообщений (в оперативной памяти)
+user_histories = defaultdict(list)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Бот реагирует только если его упомянули
     if "@shadow72ru_bot" in update.message.text:
+        user_id = update.message.from_user.id
         user_text = update.message.text.replace("@shadow72ru_bot", "").strip()
+        
+        # Добавляем сообщение пользователя в историю
+        user_histories[user_id].append({"role": "user", "content": user_text})
+        
+        # Ограничиваем размер памяти (последние 10 сообщений), чтобы не перегрузить бота
+        if len(user_histories[user_id]) > 30:
+            user_histories[user_id].pop(0)
+
         try:
-            # Используем g4f для получения ответа без API ключей
+            # Отправляем всю накопленную историю в модель
             response = g4f.ChatCompletion.create(
                 model="gpt-4o",
-                messages=[{"role": "user", "content": user_text}]
+                messages=user_histories[user_id]
             )
+            
+            # Сохраняем ответ модели в историю
+            user_histories[user_id].append({"role": "assistant", "content": response})
+            
             await update.message.reply_text(response)
         except Exception as e:
-            await update.message.reply_text("Ошибка при генерации ответа.")
+            await update.message.reply_text("Ошибка памяти.")
 
 if __name__ == '__main__':
-    # Токен берется из переменных окружения
     app = Application.builder().token(os.getenv('TELEGRAM_TOKEN')).build()
-    
-    # Добавляем обработчик текста
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    print("Бот запущен!")
-    # drop_pending_updates=True принудительно убивает старые "зависшие" запросы
     app.run_polling(drop_pending_updates=True)
