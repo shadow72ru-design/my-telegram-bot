@@ -1,2 +1,3 @@
 python-telegram-bot
 g4f
+duckduckgo-search
