@@ -1,20 +1,28 @@
 import os
+import google.generativeai as genai
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# Функция, которая проверяет упоминание и отвечает
-async def reply_on_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Проверяем, есть ли упоминание бота в сообщении
+# Настройка Gemini
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+model = genai.GenerativeModel('gemini-pro')
+
+async def reply_with_gemini(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot_username = "@shadow72ru_bot"
     if bot_username in update.message.text:
-        await update.message.reply_text(f'Вы обратились ко мне: {update.message.text.replace(bot_username, "").strip()}')
+        # Убираем имя бота из запроса
+        user_question = update.message.text.replace(bot_username, "").strip()
+        # Получаем ответ от Gemini
+        response = model.generate_content(user_question)
+        await update.message.reply_text(response.text)
 
 if __name__ == '__main__':
     token = os.getenv('TELEGRAM_TOKEN')
     app = ApplicationBuilder().token(token).build()
 
-    # Фильтруем сообщения: только те, что содержат текст и упоминание
-    app.add_handler(MessageHandler(filters.TEXT & filters.Entity("mention"), reply_on_mention))
+    # Бот реагирует только на текст с упоминанием
+    app.add_handler(MessageHandler(filters.TEXT & filters.Entity("mention"), reply_with_gemini))
 
-    print("Бот настроен на реакцию только по имени...")
+    print("Бот с интеллектом Gemini запущен...")
     app.run_polling()
+    
