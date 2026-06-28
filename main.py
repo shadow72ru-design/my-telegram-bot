@@ -19,11 +19,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user_text:
             return
 
+        # Добавляем системную инструкцию для краткости (в начало истории)
+        if not any(msg.get("role") == "system" for msg in user_histories[user_id]):
+            user_histories[user_id].insert(0, {"role": "system", "content": "Ты — краткий помощник. Отвечай только по делу, без воды, длинных вступлений и лишней вежливости. Ответы должны быть лаконичными."})
+            
+        # Добавляем сообщение пользователя
         user_histories[user_id].append({"role": "user", "content": user_text})
         
         # Лимит истории 30 сообщений
-        if len(user_histories[user_id]) > 30:
-            user_histories[user_id].pop(0)
+        if len(user_histories[user_id]) > 31: # 31 с учетом системного сообщения
+            user_histories[user_id].pop(1) # удаляем самое старое сообщение пользователя
 
         try:
             response = g4f.ChatCompletion.create(
@@ -34,7 +39,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_histories[user_id].append({"role": "assistant", "content": response})
             await update.message.reply_text(response)
         except Exception:
-            await update.message.reply_text("Ошибка памяти.")
+            await update.message.reply_text("Ошибка при обработке запроса.")
 
 if __name__ == '__main__':
     app = Application.builder().token(os.getenv('TELEGRAM_TOKEN')).build()
